@@ -1,0 +1,173 @@
+# MARU Knowledge Distillation Configuration
+# This configuration enables knowledge distillation with teacher models
+# for enhanced MARU training performance
+
+distillation:
+  # Enable/disable knowledge distillation
+  enabled: true
+  
+  # Teacher model configuration
+  teacher_model:
+    # Model identification
+    model_name: "microsoft/DialoGPT-medium"  # HuggingFace model ID or local path
+    model_type: "causal"  # "causal" for GPT-style, "masked" for BERT-style
+    
+    # Model loading parameters
+    device: "auto"  # "auto", "cuda", "cpu"
+    torch_dtype: "auto"  # "float16", "float32", "auto"
+    trust_remote_code: false
+    cache_dir: null
+    
+    # Inference parameters
+    temperature: 3.0  # Temperature for logit scaling
+    top_k: null  # Top-k sampling (null = disabled)
+    top_p: null  # Top-p sampling (null = disabled)
+    
+    # Memory and performance constraints
+    max_memory_gb: 4.0  # Maximum VRAM usage for teacher model
+    batch_size: 8  # Batch size for teacher inference
+    max_sequence_length: 512  # Maximum input sequence length
+    
+    # Logit storage configuration
+    logit_storage_path: "data/teacher_logits/"
+    logit_format: "compressed_numpy"  # "compressed_numpy", "torch", "hdf5"
+    logit_dtype: "float16"  # Storage precision
+  
+  # Loss configuration
+  loss:
+    # Basic distillation parameters
+    alpha: 0.7  # Weight for soft targets (0.0 = only hard, 1.0 = only soft)
+    temperature: 3.0  # Temperature for KL divergence
+    
+    # Loss components
+    use_hard_targets: true  # Include cross-entropy with ground truth
+    use_soft_targets: true  # Include KL divergence with teacher
+    use_attention_transfer: false  # Transfer attention patterns (if available)
+    use_feature_matching: false  # Match intermediate representations
+    
+    # Advanced scheduling
+    adaptive_alpha: false  # Adapt alpha during training
+    alpha_schedule: "constant"  # "constant", "linear_decay", "cosine_decay"
+    alpha_min: 0.1  # Minimum alpha value for scheduling
+
+    # Adaptive temperature scaling
+    adaptive_temperature: true  # Enable adaptive temperature scaling
+    temperature_method: "sharpness_based"  # "fixed", "curriculum", "sharpness_based", "logit_correlation", "combined"
+    min_temperature: 1.0  # Minimum temperature value
+    max_temperature: 8.0  # Maximum temperature value
+    temperature_adaptation_rate: 0.1  # Rate of temperature adaptation
+    
+    # Curriculum learning
+    curriculum_learning: false  # Progressive temperature reduction
+    curriculum_schedule: "linear"  # "linear", "exponential", "step"
+    curriculum_steps: 1000  # Steps for curriculum progression
+
+    # Alternative loss functions
+    logit_loss_type: "kl_divergence"  # "kl_divergence" or "mse" - MSE is more numerically stable
+  
+  # Vocabulary alignment between teacher and student
+  vocab_alignment:
+    strategy: "exact_match"  # "exact_match", "fuzzy_match", "embedding_based"
+    similarity_threshold: 0.8  # For fuzzy matching
+    use_subword_matching: true  # Match subword tokens
+    embedding_model: null  # Model for embedding-based alignment
+    embedding_cache_dir: null
+    unk_token_strategy: "map_to_unk"  # "map_to_unk", "ignore", "random"
+  
+  # Training integration
+  distill_every_n_steps: 1  # Apply distillation every N steps
+  warmup_steps: 0  # Steps before starting distillation
+  
+  # Logit extraction and caching
+  extract_logits_offline: true  # Pre-extract vs online extraction
+  logit_cache_size: 10000  # Number of cached logit tensors
+  
+  # Monitoring and logging
+  log_distillation_metrics: true  # Log distillation-specific metrics
+  log_teacher_student_agreement: true  # Log agreement statistics
+  save_teacher_outputs: false  # Save teacher outputs for analysis
+  
+  # Performance optimization
+  use_mixed_precision: true  # Use mixed precision for teacher inference
+  gradient_accumulation_steps: 1  # Gradient accumulation
+
+# Alternative configurations for different scenarios
+alternative_configs:
+  
+  # Conservative configuration for stable training
+  conservative:
+    distillation:
+      enabled: true
+      teacher_model:
+        model_name: "distilgpt2"
+        temperature: 3.0
+        max_memory_gb: 2.0
+        batch_size: 4
+      loss:
+        alpha: 0.5
+        temperature: 3.0
+        adaptive_alpha: false
+      distill_every_n_steps: 2
+      warmup_steps: 100
+  
+  # Aggressive configuration for maximum knowledge transfer
+  aggressive:
+    distillation:
+      enabled: true
+      teacher_model:
+        model_name: "microsoft/DialoGPT-medium"
+        temperature: 2.0
+        max_memory_gb: 6.0
+        batch_size: 8
+      loss:
+        alpha: 0.8
+        temperature: 2.0
+        adaptive_alpha: true
+        curriculum_learning: true
+      distill_every_n_steps: 1
+      warmup_steps: 50
+  
+  # Character-level teacher configuration
+  character_level:
+    distillation:
+      enabled: true
+      teacher_model:
+        model_name: "gpt2"
+        temperature: 4.0
+        max_memory_gb: 3.0
+        batch_size: 6
+        max_sequence_length: 256
+      loss:
+        alpha: 0.6
+        temperature: 4.0
+      vocab_alignment:
+        strategy: "fuzzy_match"
+        use_subword_matching: true
+
+# Integration with existing MARU configuration
+# This section shows how distillation integrates with other MARU components
+maru_integration:
+  # Continual learning compatibility
+  continual_learning:
+    # Distillation works alongside sleep phase consolidation
+    sleep_phase_distillation: true
+    # Use teacher model during sleep phase for memory consolidation
+    teacher_guided_consolidation: true
+    # Balance between consolidation and distillation losses
+    consolidation_distillation_balance: 0.5
+  
+  # Memory bank specialization
+  memory_banks:
+    # Use teacher guidance for memory bank routing
+    teacher_guided_routing: false
+    # Distill memory bank outputs
+    distill_memory_outputs: true
+  
+  # Training pipeline integration
+  training:
+    # Fallback to regular training if teacher unavailable
+    fallback_on_teacher_failure: true
+    # Validate teacher-student compatibility before training
+    validate_compatibility: true
+    # Save distillation checkpoints
+    save_distillation_checkpoints: true
