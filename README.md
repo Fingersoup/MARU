@@ -159,4 +159,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Note**: This is an experimental architecture. While showing promising results, it's still under active development and research.
+**Note**: This is an experimental architecture. While showing promising results, it's still under active development and research. Some potential issues of concern: 
+    Memory capacity ceiling — fixed-size banks still bottleneck total “episodic” knowledge unless you add a hierarchy or eviction policies. Without care, RAM may “clog” with outdated facts.
+    Router overhead — can eat gains from O(1) inference if memory routing isn’t extremely light.
+    Training stability — mixing recurrent + attention + SSM introduces multi-timescale gradient dynamics. The complexity of these interactions leads to several challenges. (This might be why DeepMind’s Differentiable Neural Computers collapsed without massive tuning effort??)
+    Scaling laws — the architecture might decouple from the same smooth gains that transformers show with parameter growth, meaning big model = not automatically better unless memory system is also scaled but I don't have the resources to test scaling.
+
